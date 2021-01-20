@@ -66,6 +66,14 @@ pub fn apply_filters(ptr: i32, options: u16, width: usize, height: usize) {
     }
 
     if flags.get(8) {
-        image.filter(FilterType::EdgeDetection);
+        image.filter(FilterType::SobelFilter(1));
+    }
+
+    if flags.get(9) {
+        image.filter(FilterType::SobelFilter(2));
+    }
+
+    if flags.get(10) {
+        image.filter(FilterType::SobelFilter(3));
     }
 }

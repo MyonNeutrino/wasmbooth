@@ -9,6 +9,7 @@ pub enum FilterType {
     Invert,
     Convolution(ConvolutionMatrix),
     EdgeDetection,
+    SobelFilter(u8),
 }
 
 pub trait ImageFilterExt {
@@ -24,6 +25,7 @@ impl<'a> ImageFilterExt for Image<'a> {
             FilterType::Invert => invert(self),
             FilterType::Convolution(matrix) => convolution(self, matrix),
             FilterType::EdgeDetection => edge_detection(self),
+            FilterType::SobelFilter(num) => edge(self, num),
         }
     }
 }
@@ -83,6 +85,109 @@ fn invert(image: &mut Image) {
         image.pixels[i].invert();
     }
 }
+
+fn edge( image: &mut Image, num: u8) {
+    let SOBEL_1_X = vec![
+        vec![-1.0, 0.0, 1.0],
+        vec![-2.0, 0.0, 2.0],
+        vec![-1.0, 0.0, 1.0],
+    ];
+
+    let SOBEL_1_Y = vec![
+        vec![-1.0, -2.0, -1.0],
+        vec![ 0.0,  0.0,  0.0],
+        vec![ 1.0,  2.0,  1.0],
+    ];
+    
+    let SOBEL_2_X = vec![
+        vec![-1.0,  -2.0, 0.0,  2.0, 1.0],
+        vec![-4.0, -10.0, 0.0, 10.0, 4.0],
+        vec![-7.0, -17.0, 0.0, 17.0, 7.0],
+        vec![-4.0, -10.0, 0.0, 10.0, 4.0],
+        vec![-1.0,  -2.0, 0.0,  2.0, 1.0],
+    ];
+    
+    let SOBEL_2_Y = vec![
+        vec![-1.0,  -4.0,  -7.0,  -4.0, -1.0],
+        vec![-2.0, -10.0, -17.0, -10.0, -2.0],
+        vec![ 0.0,   0.0,   0.0,   0.0,  0.0],
+        vec![ 2.0,  10.0,  17.0,  10.0,  2.0],
+        vec![ 1.0,   4.0,   7.0,   4.0,  1.0],
+    ];
+    
+    let SOBEL_3_X = vec![
+        vec![ -1.0,  -3.0,  -3.0, 0.0,  3.0,  3.0,  1.0],
+        vec![ -4.0, -11.0, -13.0, 0.0, 13.0, 11.0,  4.0],
+        vec![ -9.0, -26.0, -30.0, 0.0, 30.0, 26.0,  9.0],
+        vec![-13.0, -34.0, -40.0, 0.0, 40.0, 34.0, 13.0],
+        vec![ -9.0, -26.0, -30.0, 0.0, 30.0, 26.0,  9.0],
+        vec![ -4.0, -11.0, -13.0, 0.0, 13.0, 11.0,  4.0],
+        vec![ -1.0,  -3.0,  -3.0, 0.0,  3.0,  3.0,  1.0],
+    ];
+    
+    let SOBEL_3_Y = vec![
+        vec![-1.0,  -4.0,  -9.0, -13.0,  -9.0,  -4.0, -1.0],
+        vec![-3.0, -11.0, -26.0, -34.0, -26.0, -11.0, -3.0],
+        vec![-3.0, -13.0, -30.0, -40.0, -30.0, -13.0, -3.0],
+        vec![ 0.0,   0.0,   0.0,   0.0,   0.0,   0.0,  0.0],
+        vec![ 3.0,  13.0,  30.0,  40.0,  30.0,  13.0,  3.0],
+        vec![ 3.0,  11.0,  26.0,  34.0,  26.0,  11.0,  3.0],
+        vec![ 1.0,   4.0,   9.0,  13.0,   9.0,   4.0,  1.0],
+    ];
+    let matrix_x;
+    let matrix_y;
+    if num == 1 {
+        matrix_x = SOBEL_1_X;
+        matrix_y = SOBEL_1_Y;
+    } else if num == 2 {
+        matrix_x = SOBEL_2_X;
+        matrix_y = SOBEL_2_Y;
+    } else if num == 3 {
+        matrix_x = SOBEL_3_X;
+        matrix_y = SOBEL_3_Y;
+    } else {
+        return;
+    }
+
+    // Create a copy of our Image so we do not mess up the color values mid-calculation
+    let mut pixels_copy: Vec<Pixel> = image.pixels.iter().cloned().collect();
+    let original = Image {
+        width: image.width,
+        height: image.height,
+        pixels: &mut pixels_copy[..],
+    };
+
+    // Turn all pixels into grayscale
+    for i in 0..image.pixels.len() {
+        image.pixels[i].grayscale();
+    }
+
+    let margin = matrix_x.len() / 2;
+
+    for i in 0..original.pixels.len() {
+        let (row,column) = original.index_to_row_col(i);
+        if row < margin || row > original.height - (margin+1) || column < margin || column > original.width - (margin+1) {
+            continue;
+        }
+
+        let mut sum_x = 0.0;
+        let mut sum_y = 0.0;
+
+        for j in -(margin as i32)..(margin as i32)+1 {
+            for k in -(margin as i32)..(margin as i32)+1 {
+                let calc_index = original.row_col_to_index((row as i32 + j) as usize, (column as i32 + k) as usize);
+                sum_x += matrix_x[(j+margin as i32) as usize][(k+margin as i32) as usize] * original.pixels[calc_index].red as f64;
+                sum_y += matrix_y[(j+margin as i32) as usize][(k+margin as i32) as usize] * original.pixels[calc_index].red as f64;
+            }
+        }
+
+        let g = (sum_x * sum_x + sum_y * sum_y).sqrt();
+
+        image.pixels[i].set_gray( g as u8 );
+    }
+
+}
+
 
 fn edge_detection( image: &mut Image) {
     let mut pixels_copy: Vec<Pixel> = image.pixels.iter().cloned().collect();
@@ -344,6 +449,25 @@ mod tests {
         ];
         let mut image = Image::from_raw(&mut pixels[0], 3,3);
         image.filter(FilterType::EdgeDetection);
+
+        assert_eq!(image.pixels[4].red, 174);
+    }
+
+    #[test]
+    fn test_edge_sobel_1() {
+        let mut pixels = [
+            Pixel::rgb(119,119,119),
+            Pixel::rgb(80,80,80),
+            Pixel::rgb(122,122,122),
+            Pixel::rgb(177,177,177),
+            Pixel::rgb(154,154,154),
+            Pixel::rgb(212,212,212),
+            Pixel::rgb(89,89,89),
+            Pixel::rgb(25,25,25),
+            Pixel::rgb(152,152,152),
+        ];
+        let mut image = Image::from_raw(&mut pixels[0], 3,3);
+        image.filter(FilterType::SobelFilter(1));
 
         assert_eq!(image.pixels[4].red, 174);
     }
