@@ -8,6 +8,7 @@ pub enum FilterType {
     Grayscale,
     Invert,
     Convolution(ConvolutionMatrix),
+    EdgeDetection,
 }
 
 pub trait ImageFilterExt {
@@ -22,6 +23,7 @@ impl<'a> ImageFilterExt for Image<'a> {
             FilterType::Grayscale => grayscale(self),
             FilterType::Invert => invert(self),
             FilterType::Convolution(matrix) => convolution(self, matrix),
+            FilterType::EdgeDetection => edge_detection(self),
         }
     }
 }
@@ -79,6 +81,60 @@ fn convolution(image: &mut Image, matrix: ConvolutionMatrix) {
 fn invert(image: &mut Image) {
     for i in 0..image.pixels.len() {
         image.pixels[i].invert();
+    }
+}
+
+fn edge_detection( image: &mut Image) {
+    let mut pixels_copy: Vec<Pixel> = image.pixels.iter().cloned().collect();
+    let original = Image {
+        width: image.width,
+        height: image.height,
+        pixels: &mut pixels_copy[..],
+    };
+    // Sobel Filter:
+    //       [ -1 0 1 ]      [-1 -2 -1 ]
+    // Hx =  [ -2 0 2 ] Hy = [ 0  0  0 ]
+    //       [ -1 0 1 ]      [ 1  2  1 ]
+    let _h_x = [
+        -1, 0, 1,
+        -2, 0, 2,
+        -1, 0, 1,
+    ];
+    let _h_y = [
+        -1, -2, -1,
+         0,  0,  0,
+         1,  2,  1,
+    ];
+
+
+
+    for i in 0..image.pixels.len() {
+        image.pixels[i].grayscale();
+    }
+
+    for i in 0..original.pixels.len() {
+        let (row,column) = original.index_to_row_col(i);
+        if row == 0 || row == original.height - 1 || column == 0 || column == original.width - 1 {
+            continue;
+        }
+        let mut sum_x: i32 = original.pixels[i - original.width + 1].red as i32;
+        sum_x += - (original.pixels[i - original.width - 1].red as i32);
+        sum_x += - 2 * (original.pixels[i - 1].red as i32);
+        sum_x += 2 * (original.pixels[i +1].red as i32);
+        sum_x += - (original.pixels[i + original.width - 1].red as i32);
+        sum_x += original.pixels[i + original.width + 1].red as i32;
+
+        let mut sum_y: i32 = -1 * (original.pixels[i - original.width - 1].red as i32);
+        sum_y += - 2 * (original.pixels[i - original.width].red as i32);
+        sum_y += - (original.pixels[i - original.width + 1].red as i32);
+        sum_y += original.pixels[i + original.width - 1].red as i32;
+        sum_y += 2 * (original.pixels[i + original.width].red as i32);
+        sum_y += original.pixels[i + original.width + 1].red as i32;
+
+        // let g = ((sum_x * sum_x + sum_y * sum_y) as f64).sqrt();
+        let g = ((sum_x * sum_x + sum_y * sum_y) as f64).sqrt();
+
+        image.pixels[i].set_gray( g as u8 );
     }
 }
 
@@ -271,5 +327,24 @@ mod tests {
             Pixel::rgb(155, 105, 55),
             Pixel::rgb(155, 105, 55),
         ]);
+    }
+    
+    #[test]
+    fn test_sobel() {
+        let mut pixels = [
+            Pixel::rgb(119,119,119),
+            Pixel::rgb(80,80,80),
+            Pixel::rgb(122,122,122),
+            Pixel::rgb(177,177,177),
+            Pixel::rgb(154,154,154),
+            Pixel::rgb(212,212,212),
+            Pixel::rgb(89,89,89),
+            Pixel::rgb(25,25,25),
+            Pixel::rgb(152,152,152),
+        ];
+        let mut image = Image::from_raw(&mut pixels[0], 3,3);
+        image.filter(FilterType::EdgeDetection);
+
+        assert_eq!(image.pixels[4].red, 174);
     }
 }

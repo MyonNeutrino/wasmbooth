@@ -1,14 +1,14 @@
 pub struct BitFlags {
-    num: u8,
+    num: u16,
 }
 
 impl BitFlags {
-    pub fn new(num: u8) -> BitFlags {
+    pub fn new(num: u16) -> BitFlags {
         BitFlags { num }
     }
 
     pub fn get(&self, i: usize) -> bool {
-        if i > 7 {
+        if i > 15 {
             return false;
         }
 
@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn test_get() {
-        let flags = BitFlags::new(0b00000000);
+        let flags = BitFlags::new(0b0000000000000000);
 
         assert_eq!(flags.get(0), false);
         assert_eq!(flags.get(1), false);
@@ -34,7 +34,7 @@ mod tests {
         assert_eq!(flags.get(6), false);
         assert_eq!(flags.get(7), false);
 
-        let flags = BitFlags::new(0b00001011);
+        let flags = BitFlags::new(0b0000000000001011);
 
         assert_eq!(flags.get(0), true);
         assert_eq!(flags.get(1), true);
@@ -45,7 +45,7 @@ mod tests {
         assert_eq!(flags.get(6), false);
         assert_eq!(flags.get(7), false);
 
-        let flags = BitFlags::new(0b11111111);
+        let flags = BitFlags::new(0b0000000011111111);
 
         assert_eq!(flags.get(0), true);
         assert_eq!(flags.get(1), true);
@@ -59,5 +59,6 @@ mod tests {
         assert_eq!(flags.get(8), false);
         assert_eq!(flags.get(9), false);
         assert_eq!(flags.get(10), false);
+        assert_eq!(flags.get(16), false);
     }
 }

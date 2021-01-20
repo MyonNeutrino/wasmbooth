@@ -26,7 +26,7 @@ pub fn alloc_pixels(n: usize) -> i32 {
 // Apply each of the filters to the image
 
 #[no_mangle]
-pub fn apply_filters(ptr: i32, options: u8, width: usize, height: usize) {
+pub fn apply_filters(ptr: i32, options: u16, width: usize, height: usize) {
     let mut image = Image::from_raw(ptr as *mut Pixel, width, height);
 
     image.flip_x(); // feels more natural
@@ -63,5 +63,9 @@ pub fn apply_filters(ptr: i32, options: u8, width: usize, height: usize) {
 
     if flags.get(7) {
         image.filter(FilterType::Convolution(convolution::EMBOSS));
+    }
+
+    if flags.get(8) {
+        image.filter(FilterType::EdgeDetection);
     }
 }
